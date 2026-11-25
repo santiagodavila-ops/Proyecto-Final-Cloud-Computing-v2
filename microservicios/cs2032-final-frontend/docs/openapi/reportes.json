@@ -1,0 +1,168 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "MS5 · Reportes",
+    "version": "1.0.0",
+    "description": "CRM de Empleabilidad · CS2032 Grupo 1. El tenant se obtiene del token (Authorization: Bearer), nunca del body ni de la URL."
+  },
+  "servers": [
+    {
+      "url": "https://zeagrg9231.execute-api.us-east-1.amazonaws.com/dev",
+      "description": "API Gateway · stage dev"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearer": []
+    }
+  ],
+  "paths": {
+    "/reportes/generar": {
+      "post": {
+        "summary": "Recalcular resumen_general leyendo las tablas de MS1–MS4",
+        "responses": {
+          "201": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {}
+            }
+          }
+        }
+      }
+    },
+    "/reportes": {
+      "get": {
+        "summary": "Listar reportes",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        },
+        "parameters": [
+          {
+            "name": "prefijo",
+            "in": "query",
+            "required": false,
+            "description": "Ej. diario_2026-10",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Paginación",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/reportes/{tipo_reporte}": {
+      "parameters": [
+        {
+          "name": "tipo_reporte",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "summary": "Buscar reporte (ej. resumen_general)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        }
+      },
+      "put": {
+        "summary": "Editar observaciones",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "observaciones": "Revisado en demo"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar reporte",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EmpleaCRM · API (Swagger)</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui.css">
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; }
+    .aviso { background: #0f172a; color: #e2e8f0; padding: 10px 16px; font-size: 13px; }
+    .aviso a { color: #93c5fd; }
+  </style>
+</head>
+<body>
+  <div class="aviso">
+    Elige el microservicio arriba a la derecha. Para probar: ejecuta <b>POST /usuarios/login</b> en
+    “MS1 · Usuarios”, copia el <code>token_acceso</code> y pégalo en <b>Authorize</b> de cualquier microservicio.
+    <a href="index.html">← Volver al CRM</a>
+  </div>
+  <div id="swagger"></div>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5.17.14/swagger-ui-standalone-preset.js"></script>
+  <script>
+    SwaggerUIBundle({
+      dom_id: "#swagger",
+      urls: [
+        { name: "MS1 · Usuarios / Autenticación", url: "docs/openapi/usuarios.json" },
+        { name: "MS2 · Candidatos", url: "docs/openapi/candidatos.json" },
+        { name: "MS3 · Vacantes / Postulaciones", url: "docs/openapi/vacantes.json" },
+        { name: "MS4 · Entrevistas", url: "docs/openapi/entrevistas.json" },
+        { name: "MS5 · Reportes", url: "docs/openapi/reportes.json" },
+      ],
+      presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+      layout: "StandaloneLayout",
+      persistAuthorization: true,
+    });
+  </script>
+</body>
+</html>

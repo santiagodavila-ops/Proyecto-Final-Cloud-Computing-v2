@@ -1,0 +1,97 @@
+service: cs2032-usuarios
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  timeout: 10
+  tracing:
+    lambda: true
+    apiGateway: true
+  environment:
+    USUARIOS_TABLE: t_usuarios-${sls:stage}
+    TOKENS_TABLE: t_tokens_acceso-${sls:stage}
+  # AWS Academy no permite crear roles IAM: se usa LabRole
+  iam:
+    role: arn:aws:iam::${aws:accountId}:role/LabRole
+
+package:
+  individually: true
+
+functions:
+  authorizer:
+    handler: authorizer.handler
+    package:
+      patterns: ['!**', 'authorizer.py', 'common/**']
+  crearUsuario:
+    handler: crear_usuario.handler
+    package:
+      patterns: ['!**', 'crear_usuario.py', 'common/**']
+    events:
+      - http: { path: usuarios, method: post, cors: true }
+  loginUsuario:
+    handler: login_usuario.handler
+    package:
+      patterns: ['!**', 'login_usuario.py', 'common/**']
+    events:
+      - http: { path: usuarios/login, method: post, cors: true }
+  refrescarToken:
+    handler: refrescar_token.handler
+    package:
+      patterns: ['!**', 'refrescar_token.py', 'common/**']
+    events:
+      - http: { path: usuarios/refresh, method: post, cors: true }
+  validarTokenAcceso:
+    handler: validar_token_endpoint.handler
+    package:
+      patterns: ['!**', 'validar_token_endpoint.py', 'common/**']
+    events:
+      - http:
+          path: usuarios/validar
+          method: get
+          cors: true
+          authorizer:
+            name: authorizer
+            resultTtlInSeconds: 300
+            identitySource: method.request.header.Authorization
+            type: token
+
+resources:
+  Resources:
+    TablaUsuarios:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: t_usuarios-${sls:stage}
+        AttributeDefinitions:
+          - { AttributeName: tenant_id, AttributeType: S }
+          - { AttributeName: usuario_id, AttributeType: S }
+          - { AttributeName: email, AttributeType: S }
+        KeySchema:
+          - { AttributeName: tenant_id, KeyType: HASH }
+          - { AttributeName: usuario_id, KeyType: RANGE }
+        GlobalSecondaryIndexes:
+          - IndexName: indice_email
+            KeySchema:
+              - { AttributeName: email, KeyType: HASH }
+            Projection: { ProjectionType: ALL }
+        BillingMode: PAY_PER_REQUEST
+    TablaTokens:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: t_tokens_acceso-${sls:stage}
+        AttributeDefinitions:
+          - { AttributeName: token, AttributeType: S }
+        KeySchema:
+          - { AttributeName: token, KeyType: HASH }
+        BillingMode: PAY_PER_REQUEST
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+  Outputs:
+    AuthorizerLambdaFunctionArn:
+      Description: ARN de la Lambda Authorizer para validacion perimetral de tokens
+      Value: !GetAtt AuthorizerLambdaFunction.Arn
+      Export:
+        Name: ${sls:stage}-cs2032-authorizer-arn

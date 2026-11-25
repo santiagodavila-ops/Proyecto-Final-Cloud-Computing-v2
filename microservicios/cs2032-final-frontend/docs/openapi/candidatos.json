@@ -1,0 +1,200 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "MS2 · Candidatos (+ CV en S3)",
+    "version": "1.0.0",
+    "description": "CRM de Empleabilidad · CS2032 Grupo 1. El tenant se obtiene del token (Authorization: Bearer), nunca del body ni de la URL."
+  },
+  "servers": [
+    {
+      "url": "https://d3q8s9iuzj.execute-api.us-east-1.amazonaws.com/dev",
+      "description": "API Gateway · stage dev"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearer": []
+    }
+  ],
+  "paths": {
+    "/candidatos": {
+      "get": {
+        "summary": "Listar candidatos del tenant (100 por página)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        },
+        "parameters": [
+          {
+            "name": "ultimo_id",
+            "in": "query",
+            "required": false,
+            "description": "Cursor de paginación",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "Crear candidato",
+        "responses": {
+          "201": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "nombre": "Lucía Ramos",
+                "email": "lucia@correo.pe",
+                "telefono": "999111222",
+                "profesion": "Analista de datos"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/candidatos/{candidato_id}": {
+      "parameters": [
+        {
+          "name": "candidato_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "summary": "Buscar candidato",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        }
+      },
+      "put": {
+        "summary": "Modificar candidato",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "profesion": "Científica de datos",
+                "estado": "activo"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar candidato",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        }
+      }
+    },
+    "/candidatos/{candidato_id}/cv-url": {
+      "parameters": [
+        {
+          "name": "candidato_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "post": {
+        "summary": "Generar URL prefirmada de S3 para subir el CV (o confirmar con {\"confirmar\": true})",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {}
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,121 @@
+service: cs2032-candidatos
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  timeout: 10
+  tracing:
+    lambda: true
+    apiGateway: true
+  environment:
+    CANDIDATOS_TABLE: t_candidatos-${sls:stage}
+    TOKENS_TABLE: t_tokens_acceso-${sls:stage}
+    # Sufijo con el ID de cuenta: los nombres de bucket son globales en S3
+    BUCKET_CVS: cs2032-candidatos-cv-${sls:stage}-${aws:accountId}
+  # AWS Academy no permite crear roles IAM: se usa LabRole
+  iam:
+    role: arn:aws:iam::${aws:accountId}:role/LabRole
+
+custom:
+  authorizer:
+    arn: arn:aws:lambda:${aws:region}:${aws:accountId}:function:cs2032-usuarios-${sls:stage}-authorizer
+    resultTtlInSeconds: 300
+    identitySource: method.request.header.Authorization
+    type: token
+
+package:
+  individually: true
+
+functions:
+  listarCandidatos:
+    handler: listar_candidatos.handler
+    package:
+      patterns: ['!**', 'listar_candidatos.py', 'common/**']
+    events:
+      - http:
+          path: candidatos
+          method: get
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  crearCandidato:
+    handler: crear_candidato.handler
+    package:
+      patterns: ['!**', 'crear_candidato.py', 'common/**']
+    events:
+      - http:
+          path: candidatos
+          method: post
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  buscarCandidato:
+    handler: buscar_candidato.handler
+    package:
+      patterns: ['!**', 'buscar_candidato.py', 'common/**']
+    events:
+      - http:
+          path: 'candidatos/{candidato_id}'
+          method: get
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  modificarCandidato:
+    handler: modificar_candidato.handler
+    package:
+      patterns: ['!**', 'modificar_candidato.py', 'common/**']
+    events:
+      - http:
+          path: 'candidatos/{candidato_id}'
+          method: put
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  eliminarCandidato:
+    handler: eliminar_candidato.handler
+    package:
+      patterns: ['!**', 'eliminar_candidato.py', 'common/**']
+    events:
+      - http:
+          path: 'candidatos/{candidato_id}'
+          method: delete
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  generarUrlSubidaCV:
+    handler: generar_url_subida_cv.handler
+    package:
+      patterns: ['!**', 'generar_url_subida_cv.py', 'common/**']
+    events:
+      - http:
+          path: 'candidatos/{candidato_id}/cv-url'
+          method: post
+          cors: true
+          authorizer: ${self:custom.authorizer}
+
+resources:
+  Resources:
+    TablaCandidatos:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: t_candidatos-${sls:stage}
+        AttributeDefinitions:
+          - { AttributeName: tenant_id, AttributeType: S }
+          - { AttributeName: candidato_id, AttributeType: S }
+        KeySchema:
+          - { AttributeName: tenant_id, KeyType: HASH }
+          - { AttributeName: candidato_id, KeyType: RANGE }
+        BillingMode: PAY_PER_REQUEST
+    BucketCVs:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: cs2032-candidatos-cv-${sls:stage}-${aws:accountId}
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        CorsConfiguration:
+          CorsRules:
+            - AllowedMethods: [PUT]
+              AllowedOrigins: ['*']
+              AllowedHeaders: ['*']
+              MaxAge: 3000

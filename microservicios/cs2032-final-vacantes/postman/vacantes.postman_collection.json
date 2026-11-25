@@ -1,0 +1,356 @@
+{
+  "info": {
+    "name": "CRM - Vacantes y Postulaciones",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Ejecutar en orden. Completar email y password de un usuario del tenant."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://7i7gtr9xv7.execute-api.us-east-1.amazonaws.com/dev"
+    },
+    {
+      "key": "usuarios_url",
+      "value": "https://hwi0abum32.execute-api.us-east-1.amazonaws.com/dev"
+    },
+    {
+      "key": "tenant_id",
+      "value": "tenant_1"
+    },
+    {
+      "key": "email",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "vacante_id",
+      "value": ""
+    },
+    {
+      "key": "postulacion_id",
+      "value": ""
+    },
+    {
+      "key": "candidato_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "00 - Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{usuarios_url}}/usuarios/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) {",
+              "  const d = pm.response.json();",
+              "  pm.collectionVariables.set('token', d.token_acceso);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 - Crear vacante",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/vacantes",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"titulo\": \"Analista de Datos\",\n  \"descripcion\": \"SQL, Python y Power BI\",\n  \"area\": \"Tecnología\",\n  \"ubicacion\": \"Lima\",\n  \"modalidad\": \"hibrido\",\n  \"salario\": 5500\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) {",
+              "  const d = pm.response.json();",
+              "  pm.collectionVariables.set('vacante_id', d.vacante.vacante_id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Listar vacantes",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/vacantes"
+      }
+    },
+    {
+      "name": "03 - Listar vacantes abiertas",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/vacantes?estado=abierta"
+      }
+    },
+    {
+      "name": "04 - Buscar vacante",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/vacantes/{{vacante_id}}"
+      }
+    },
+    {
+      "name": "05 - Modificar vacante",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/vacantes/{{vacante_id}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"salario\": 6000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "06 - Postular candidato (poner candidato_id real)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/postulaciones",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"vacante_id\": \"{{vacante_id}}\",\n  \"candidato_id\": \"{{candidato_id}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) {",
+              "  const d = pm.response.json();",
+              "  pm.collectionVariables.set('postulacion_id', d.postulacion.postulacion_id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Avanzar a preseleccionado",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/postulaciones/{{postulacion_id}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"estado\": \"preseleccionado\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "08 - Avanzar a entrevista",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/postulaciones/{{postulacion_id}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"estado\": \"entrevista\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "09 - Listar postulaciones en entrevista",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/postulaciones?estado=entrevista"
+      }
+    },
+    {
+      "name": "10 - Postulaciones de la vacante",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/postulaciones?vacante_id={{vacante_id}}"
+      }
+    },
+    {
+      "name": "11 - Avanzar a oferta",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/postulaciones/{{postulacion_id}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"estado\": \"oferta\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "12 - Avanzar a contratado",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/postulaciones/{{postulacion_id}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"estado\": \"contratado\",\n  \"notas\": \"Aceptó la oferta\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "13 - Buscar postulación",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/postulaciones/{{postulacion_id}}"
+      }
+    },
+    {
+      "name": "14 - Eliminar postulación",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{base_url}}/postulaciones/{{postulacion_id}}"
+      }
+    },
+    {
+      "name": "15 - Eliminar vacante",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{base_url}}/vacantes/{{vacante_id}}"
+      }
+    },
+    {
+      "name": "16 - Rechazo sin token",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/vacantes",
+        "auth": {
+          "type": "noauth"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,337 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "MS3 · Vacantes / Postulaciones",
+    "version": "1.0.0",
+    "description": "CRM de Empleabilidad · CS2032 Grupo 1. El tenant se obtiene del token (Authorization: Bearer), nunca del body ni de la URL."
+  },
+  "servers": [
+    {
+      "url": "https://7i7gtr9xv7.execute-api.us-east-1.amazonaws.com/dev",
+      "description": "API Gateway · stage dev"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearer": []
+    }
+  ],
+  "paths": {
+    "/vacantes": {
+      "get": {
+        "summary": "Listar vacantes",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        },
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "description": "Filtro",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "abierta",
+                "cerrada"
+              ]
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Paginación",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "Publicar vacante",
+        "responses": {
+          "201": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "titulo": "Analista de Datos",
+                "descripcion": "SQL y Python",
+                "area": "Tecnología",
+                "ubicacion": "Lima",
+                "modalidad": "hibrido",
+                "salario": 5500
+              }
+            }
+          }
+        }
+      }
+    },
+    "/vacantes/{vacante_id}": {
+      "parameters": [
+        {
+          "name": "vacante_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "summary": "Buscar vacante",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        }
+      },
+      "put": {
+        "summary": "Modificar vacante",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "salario": 6000,
+                "estado": "cerrada"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar vacante",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        }
+      }
+    },
+    "/postulaciones": {
+      "get": {
+        "summary": "Listar postulaciones (GSI indice_estado / indice_vacante)",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        },
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "description": "Etapa del pipeline",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "postulado",
+                "preseleccionado",
+                "entrevista",
+                "oferta",
+                "contratado",
+                "rechazado"
+              ]
+            }
+          },
+          {
+            "name": "vacante_id",
+            "in": "query",
+            "required": false,
+            "description": "Filtrar por vacante",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Paginación",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "Postular candidato a vacante",
+        "responses": {
+          "201": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "vacante_id": "<uuid>",
+                "candidato_id": "<uuid>",
+                "notas": ""
+              }
+            }
+          }
+        }
+      }
+    },
+    "/postulaciones/{postulacion_id}": {
+      "parameters": [
+        {
+          "name": "postulacion_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "summary": "Buscar postulación",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        }
+      },
+      "put": {
+        "summary": "Mover en el pipeline",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "estado": "preseleccionado",
+                "notas": "Buen perfil"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar postulación",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        }
+      }
+    }
+  }
+}

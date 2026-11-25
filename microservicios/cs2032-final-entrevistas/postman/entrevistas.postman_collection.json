@@ -1,0 +1,199 @@
+{
+  "info": {
+    "name": "CRM - Entrevistas",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Ejecutar en orden. Completar email y password de un usuario del tenant."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://nhso47cnu1.execute-api.us-east-1.amazonaws.com/dev"
+    },
+    {
+      "key": "usuarios_url",
+      "value": "https://hwi0abum32.execute-api.us-east-1.amazonaws.com/dev"
+    },
+    {
+      "key": "tenant_id",
+      "value": "tenant_1"
+    },
+    {
+      "key": "email",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "entrevista_id",
+      "value": ""
+    },
+    {
+      "key": "candidato_id",
+      "value": ""
+    },
+    {
+      "key": "vacante_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "00 - Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{usuarios_url}}/usuarios/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) {",
+              "  const d = pm.response.json();",
+              "  pm.collectionVariables.set('token', d.token_acceso);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 - Agendar entrevista (poner candidato_id y vacante_id reales)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/entrevistas",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"candidato_id\": \"{{candidato_id}}\",\n  \"vacante_id\": \"{{vacante_id}}\",\n  \"entrevistador\": \"Carla Ruiz\",\n  \"fecha_hora\": \"2026-11-20T15:00:00-05:00\",\n  \"modalidad\": \"virtual\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) {",
+              "  const d = pm.response.json();",
+              "  pm.collectionVariables.set('entrevista_id', d.entrevista.entrevista_id);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Listar entrevistas",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/entrevistas"
+      }
+    },
+    {
+      "name": "03 - Listar entrevistas agendadas",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/entrevistas?estado=agendada"
+      }
+    },
+    {
+      "name": "04 - Buscar entrevista",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/entrevistas/{{entrevista_id}}"
+      }
+    },
+    {
+      "name": "05 - Marcar realizada",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/entrevistas/{{entrevista_id}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"estado\": \"realizada\",\n  \"notas\": \"Buen perfil técnico\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "06 - Eliminar entrevista",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{base_url}}/entrevistas/{{entrevista_id}}"
+      }
+    },
+    {
+      "name": "07 - Rechazo sin token",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/entrevistas",
+        "auth": {
+          "type": "noauth"
+        }
+      }
+    }
+  ]
+}

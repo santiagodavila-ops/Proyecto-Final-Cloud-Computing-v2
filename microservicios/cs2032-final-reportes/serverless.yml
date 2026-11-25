@@ -1,0 +1,117 @@
+service: cs2032-reportes
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  timeout: 10
+  tracing:
+    lambda: true
+    apiGateway: true
+  environment:
+    REPORTES_TABLE: t_reportes-${sls:stage}
+    TOKENS_TABLE: t_tokens_acceso-${sls:stage}
+    USUARIOS_TABLE: t_usuarios-${sls:stage}
+    CANDIDATOS_TABLE: t_candidatos-${sls:stage}
+    ENTREVISTAS_TABLE: t_entrevistas-${sls:stage}
+    # Conexión a RDS MySQL (un schema por tenant) obtenida desde AWS SSM Parameter Store
+    RDS_HOST: ${ssm:/cs2032/${sls:stage}/rds/host}
+    RDS_USER: ${ssm:/cs2032/${sls:stage}/rds/user}
+    RDS_PORT: ${ssm:/cs2032/${sls:stage}/rds/port}
+    SSM_RDS_PREFIX: /cs2032/${sls:stage}/rds
+  # AWS Academy no permite crear roles IAM: se usa LabRole
+  iam:
+    role: arn:aws:iam::${aws:accountId}:role/LabRole
+
+# pymysql es Python puro: no hace falta Docker para empaquetarlo
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: false
+  authorizer:
+    arn: arn:aws:lambda:${aws:region}:${aws:accountId}:function:cs2032-usuarios-${sls:stage}-authorizer
+    resultTtlInSeconds: 300
+    identitySource: method.request.header.Authorization
+    type: token
+
+package:
+  individually: true
+  patterns:
+    - '!scripts/**'
+    - '!postman/**'
+    - '!README.md'
+
+functions:
+  generarReporte:
+    handler: generarReporte.handler
+    package: { patterns: ['!**', 'generarReporte.py', 'common/**'] }
+    # Recorre ~10k ítems por tabla; API Gateway corta a los 29 s
+    timeout: 29
+    memorySize: 512
+    # Solo esta función consulta RDS: debe estar en la misma VPC que la instancia
+    # (RDS_SG_IDS=sg-aaa y RDS_SUBNET_IDS=subnet-aaa,subnet-bbb, separados por comas)
+    vpc:
+      securityGroupIds:
+        - ${env:RDS_SG_IDS}
+      subnetIds:
+        Fn::Split: [',', '${env:RDS_SUBNET_IDS}']
+    events:
+      - http:
+          path: reportes/generar
+          method: post
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  listarReportes:
+    handler: listarReportes.handler
+    package: { patterns: ['!**', 'listarReportes.py', 'common/**'] }
+    events:
+      - http:
+          path: reportes
+          method: get
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  buscarReporte:
+    handler: buscarReporte.handler
+    package: { patterns: ['!**', 'buscarReporte.py', 'common/**'] }
+    events:
+      - http:
+          path: 'reportes/{tipo_reporte}'
+          method: get
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  modificarReporte:
+    handler: modificarReporte.handler
+    package: { patterns: ['!**', 'modificarReporte.py', 'common/**'] }
+    events:
+      - http:
+          path: 'reportes/{tipo_reporte}'
+          method: put
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  eliminarReporte:
+    handler: eliminarReporte.handler
+    package: { patterns: ['!**', 'eliminarReporte.py', 'common/**'] }
+    events:
+      - http:
+          path: 'reportes/{tipo_reporte}'
+          method: delete
+          cors: true
+          authorizer: ${self:custom.authorizer}
+
+resources:
+  Resources:
+    TablaReportes:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: t_reportes-${sls:stage}
+        AttributeDefinitions:
+          - { AttributeName: tenant_id, AttributeType: S }
+          - { AttributeName: tipo_reporte, AttributeType: S }
+        KeySchema:
+          - { AttributeName: tenant_id, KeyType: HASH }
+          - { AttributeName: tipo_reporte, KeyType: RANGE }
+        BillingMode: PAY_PER_REQUEST

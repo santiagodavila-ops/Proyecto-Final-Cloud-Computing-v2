@@ -1,0 +1,243 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "MS1 · Usuarios / Autenticación",
+    "version": "1.0.0",
+    "description": "CRM de Empleabilidad · CS2032 Grupo 1. El tenant se obtiene del token (Authorization: Bearer), nunca del body ni de la URL."
+  },
+  "servers": [
+    {
+      "url": "https://hwi0abum32.execute-api.us-east-1.amazonaws.com/dev",
+      "description": "API Gateway · stage dev"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearer": []
+    }
+  ],
+  "paths": {
+    "/usuarios": {
+      "post": {
+        "summary": "Crear usuario (solo administrador)",
+        "responses": {
+          "201": {
+            "description": "Usuario creado"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "403": {
+            "description": "Solo un administrador puede crear usuarios"
+          },
+          "409": {
+            "description": "Ya existe un usuario con ese correo"
+          }
+        },
+        "description": "Requiere token_acceso de un usuario con rol administrador. El usuario se crea en el tenant del token; no se envía tenant_id.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "nombre",
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "nombre": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  },
+                  "rol": {
+                    "type": "string",
+                    "enum": [
+                      "administrador",
+                      "reclutador"
+                    ],
+                    "default": "reclutador"
+                  }
+                }
+              },
+              "example": {
+                "nombre": "Ana Torres",
+                "email": "ana@empresa.pe",
+                "password": "Secreta-123",
+                "rol": "reclutador"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/usuarios/login": {
+      "post": {
+        "summary": "Login: devuelve token_acceso (15 min) y token_refresh (7 días)",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token_acceso": {
+                      "type": "string",
+                      "description": "JWT de acceso (15 minutos)"
+                    },
+                    "token_refresh": {
+                      "type": "string",
+                      "description": "Token de renovación (7 días)"
+                    },
+                    "expira_acceso": {
+                      "type": "string",
+                      "description": "Vencimiento del token_acceso"
+                    },
+                    "expira_refresh": {
+                      "type": "string",
+                      "description": "Vencimiento del token_refresh"
+                    },
+                    "tenant_id": {
+                      "type": "string"
+                    },
+                    "usuario_id": {
+                      "type": "string"
+                    },
+                    "token": {
+                      "type": "string",
+                      "description": "Alias deprecado de token_acceso",
+                      "deprecated": true
+                    },
+                    "rol": {
+                      "type": "string",
+                      "enum": [
+                        "administrador",
+                        "reclutador"
+                      ],
+                      "description": "Rol del usuario"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Credenciales inválidas"
+          }
+        },
+        "description": "Usa token_acceso en Authorization: Bearer. Cuando expire (401), renuévalo con POST /usuarios/refresh. El campo token es un alias deprecado de token_acceso.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "email": "demo.tenant_1@cs2032.test",
+                "password": "Demo-cs2032"
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/usuarios/validar": {
+      "get": {
+        "summary": "Validar token y obtener su tenant_id",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        }
+      }
+    },
+    "/usuarios/refresh": {
+      "post": {
+        "summary": "Renovar token_acceso con el token_refresh",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "token_acceso": {
+                      "type": "string"
+                    },
+                    "expira_acceso": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "token_refresh expirado o inválido: hay que volver a iniciar sesión"
+          }
+        },
+        "description": "Devuelve un nuevo token_acceso (15 min). No requiere Authorization.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "token_refresh"
+                ],
+                "properties": {
+                  "token_refresh": {
+                    "type": "string"
+                  }
+                }
+              },
+              "example": {
+                "token_refresh": "<token_refresh devuelto por /usuarios/login>"
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    }
+  }
+}

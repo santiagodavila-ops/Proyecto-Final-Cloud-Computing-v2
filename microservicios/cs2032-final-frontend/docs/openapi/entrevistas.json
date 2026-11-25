@@ -1,0 +1,197 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "MS4 · Entrevistas / Seguimiento",
+    "version": "1.0.0",
+    "description": "CRM de Empleabilidad · CS2032 Grupo 1. El tenant se obtiene del token (Authorization: Bearer), nunca del body ni de la URL."
+  },
+  "servers": [
+    {
+      "url": "https://nhso47cnu1.execute-api.us-east-1.amazonaws.com/dev",
+      "description": "API Gateway · stage dev"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearer": []
+    }
+  ],
+  "paths": {
+    "/entrevistas": {
+      "get": {
+        "summary": "Listar entrevistas",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        },
+        "parameters": [
+          {
+            "name": "estado",
+            "in": "query",
+            "required": false,
+            "description": "Filtro",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "agendada",
+                "realizada",
+                "cancelada"
+              ]
+            }
+          },
+          {
+            "name": "candidato_id",
+            "in": "query",
+            "required": false,
+            "description": "Filtro",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "vacante_id",
+            "in": "query",
+            "required": false,
+            "description": "Filtro",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "description": "Paginación",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "Agendar entrevista",
+        "responses": {
+          "201": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "candidato_id": "<uuid>",
+                "vacante_id": "<uuid>",
+                "postulacion_id": "<uuid>",
+                "entrevistador": "Carla Ruiz",
+                "fecha_hora": "2026-11-20T15:00:00-05:00",
+                "modalidad": "virtual"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/entrevistas/{entrevista_id}": {
+      "parameters": [
+        {
+          "name": "entrevista_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "get": {
+        "summary": "Buscar entrevista",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        }
+      },
+      "put": {
+        "summary": "Modificar entrevista",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "estado": "realizada",
+                "notas": "Buen perfil técnico"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar entrevista",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "400": {
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "Token no enviado, inválido o expirado"
+          },
+          "404": {
+            "description": "No existe en el tenant del token (aislamiento multi-tenant)"
+          }
+        }
+      }
+    }
+  }
+}

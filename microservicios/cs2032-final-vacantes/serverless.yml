@@ -1,0 +1,206 @@
+service: cs2032-vacantes
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  timeout: 10
+  tracing:
+    lambda: true
+    apiGateway: true
+  environment:
+    CANDIDATOS_TABLE: t_candidatos-${sls:stage}
+    TOKENS_TABLE: t_tokens_acceso-${sls:stage}
+    # Conexión a RDS MySQL (un schema por tenant) obtenida desde AWS SSM Parameter Store
+    RDS_HOST: ${ssm:/cs2032/${sls:stage}/rds/host}
+    RDS_USER: ${ssm:/cs2032/${sls:stage}/rds/user}
+    RDS_PORT: ${ssm:/cs2032/${sls:stage}/rds/port}
+    SSM_RDS_PREFIX: /cs2032/${sls:stage}/rds
+  # Las Lambdas deben estar en la misma VPC que la instancia RDS. Tomar los valores
+  # de la consola de AWS del Learner Lab (VPC > Security groups / Subnets; separar con comas
+  # en la variable de entorno, ej. RDS_SG_IDS=sg-aaa y RDS_SUBNET_IDS=subnet-aaa,subnet-bbb).
+  vpc:
+    securityGroupIds:
+      - ${env:RDS_SG_IDS}
+    subnetIds:
+      Fn::Split: [',', '${env:RDS_SUBNET_IDS}']
+  # AWS Academy no permite crear roles IAM: se usa LabRole
+  iam:
+    role: arn:aws:iam::${aws:accountId}:role/LabRole
+
+# pymysql es Python puro: no hace falta Docker para empaquetarlo
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: false
+  authorizer:
+    arn: arn:aws:lambda:${aws:region}:${aws:accountId}:function:cs2032-usuarios-${sls:stage}-authorizer
+    resultTtlInSeconds: 300
+    identitySource: method.request.header.Authorization
+    type: token
+
+package:
+  individually: true
+  patterns:
+    - '!scripts/**'
+    - '!postman/**'
+    - '!README.md'
+
+functions:
+  listarVacantes:
+    handler: listar_vacantes.handler
+    package:
+      patterns: ['!**', 'listar_vacantes.py', 'common/**']
+    events:
+      - http:
+          path: vacantes
+          method: get
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  crearVacante:
+    handler: crear_vacante.handler
+    package:
+      patterns: ['!**', 'crear_vacante.py', 'common/**']
+    events:
+      - http:
+          path: vacantes
+          method: post
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  buscarVacante:
+    handler: buscar_vacante.handler
+    package:
+      patterns: ['!**', 'buscar_vacante.py', 'common/**']
+    events:
+      - http:
+          path: 'vacantes/{vacante_id}'
+          method: get
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  modificarVacante:
+    handler: modificar_vacante.handler
+    package:
+      patterns: ['!**', 'modificar_vacante.py', 'common/**']
+    events:
+      - http:
+          path: 'vacantes/{vacante_id}'
+          method: put
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  eliminarVacante:
+    handler: eliminar_vacante.handler
+    package:
+      patterns: ['!**', 'eliminar_vacante.py', 'common/**']
+    events:
+      - http:
+          path: 'vacantes/{vacante_id}'
+          method: delete
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  listarPostulaciones:
+    handler: listar_postulaciones.handler
+    package:
+      patterns: ['!**', 'listar_postulaciones.py', 'common/**']
+    events:
+      - http:
+          path: postulaciones
+          method: get
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  crearPostulacion:
+    handler: crear_postulacion.handler
+    package:
+      patterns: ['!**', 'crear_postulacion.py', 'common/**']
+    events:
+      - http:
+          path: postulaciones
+          method: post
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  buscarPostulacion:
+    handler: buscar_postulacion.handler
+    package:
+      patterns: ['!**', 'buscar_postulacion.py', 'common/**']
+    events:
+      - http:
+          path: 'postulaciones/{postulacion_id}'
+          method: get
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  modificarPostulacion:
+    handler: modificar_postulacion.handler
+    package:
+      patterns: ['!**', 'modificar_postulacion.py', 'common/**']
+    events:
+      - http:
+          path: 'postulaciones/{postulacion_id}'
+          method: put
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  eliminarPostulacion:
+    handler: eliminar_postulacion.handler
+    package:
+      patterns: ['!**', 'eliminar_postulacion.py', 'common/**']
+    events:
+      - http:
+          path: 'postulaciones/{postulacion_id}'
+          method: delete
+          cors: true
+          authorizer: ${self:custom.authorizer}
+
+resources:
+  Resources:
+    # VPC Endpoint de tipo Gateway para DynamoDB: permite que las Lambdas dentro de la VPC
+    # lleguen a DynamoDB sin salir a internet. Es gratuito (los endpoints Gateway no se cobran).
+    # RDS_VPC_ID: ID de la VPC (consola de VPC > Your VPCs del Learner Lab, ej. vpc-xxxx).
+    # RDS_ROUTE_TABLE_IDS: tablas de rutas de esa VPC (VPC > Route tables), separadas por coma
+    # en la variable de entorno, ej. RDS_ROUTE_TABLE_IDS=rtb-aaa,rtb-bbb.
+    EndpointDynamoDB:
+      Type: AWS::EC2::VPCEndpoint
+      Properties:
+        VpcEndpointType: Gateway
+        ServiceName: !Sub com.amazonaws.${AWS::Region}.dynamodb
+        VpcId: ${env:RDS_VPC_ID}
+        RouteTableIds:
+          Fn::Split: [',', '${env:RDS_ROUTE_TABLE_IDS}']
+        Tags:
+          - { Key: Name, Value: 'cs2032-dynamodb-gateway-${sls:stage}' }
+    TablaVacantes:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: t_vacantes-${sls:stage}
+        AttributeDefinitions:
+          - { AttributeName: tenant_id, AttributeType: S }
+          - { AttributeName: vacante_id, AttributeType: S }
+        KeySchema:
+          - { AttributeName: tenant_id, KeyType: HASH }
+          - { AttributeName: vacante_id, KeyType: RANGE }
+        BillingMode: PAY_PER_REQUEST
+    TablaPostulaciones:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: t_postulaciones-${sls:stage}
+        AttributeDefinitions:
+          - { AttributeName: tenant_id, AttributeType: S }
+          - { AttributeName: postulacion_id, AttributeType: S }
+          - { AttributeName: estado, AttributeType: S }
+          - { AttributeName: vacante_id, AttributeType: S }
+        KeySchema:
+          - { AttributeName: tenant_id, KeyType: HASH }
+          - { AttributeName: postulacion_id, KeyType: RANGE }
+        GlobalSecondaryIndexes:
+          - IndexName: indice_estado
+            KeySchema:
+              - { AttributeName: tenant_id, KeyType: HASH }
+              - { AttributeName: estado, KeyType: RANGE }
+            Projection: { ProjectionType: ALL }
+          - IndexName: indice_vacante
+            KeySchema:
+              - { AttributeName: tenant_id, KeyType: HASH }
+              - { AttributeName: vacante_id, KeyType: RANGE }
+            Projection: { ProjectionType: ALL }
+        BillingMode: PAY_PER_REQUEST

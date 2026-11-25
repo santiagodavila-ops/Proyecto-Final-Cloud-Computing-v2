@@ -1,0 +1,193 @@
+service: cs2032-entrevistas
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: python3.11
+  region: us-east-1
+  stage: ${opt:stage, 'dev'}
+  timeout: 10
+  tracing:
+    lambda: true
+    apiGateway: true
+  environment:
+    ENTREVISTAS_TABLE: t_entrevistas-${sls:stage}
+    CANDIDATOS_TABLE: t_candidatos-${sls:stage}
+    TOKENS_TABLE: t_tokens_acceso-${sls:stage}
+    # Conexión a RDS MySQL (un schema por tenant) obtenida desde AWS SSM Parameter Store
+    RDS_HOST: ${ssm:/cs2032/${sls:stage}/rds/host}
+    RDS_USER: ${ssm:/cs2032/${sls:stage}/rds/user}
+    RDS_PORT: ${ssm:/cs2032/${sls:stage}/rds/port}
+    SSM_RDS_PREFIX: /cs2032/${sls:stage}/rds
+  # AWS Academy no permite crear roles IAM: se usa LabRole
+  # (con un rol fijo, Serverless ignora iam.role.statements). Permisos mínimos requeridos:
+  #   crearEntrevista:        sns:Publish sobre TopicoEntrevistasAgendadas
+  #   procesarNotificacion:   sqs:ReceiveMessage, sqs:DeleteMessage, sqs:GetQueueAttributes
+  #                           sobre ColaNotificacionesEntrevistas
+  iam:
+    role: arn:aws:iam::${aws:accountId}:role/LabRole
+
+# pymysql es Python puro: no hace falta Docker para empaquetarlo
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: false
+  authorizer:
+    arn: arn:aws:lambda:${aws:region}:${aws:accountId}:function:cs2032-usuarios-${sls:stage}-authorizer
+    resultTtlInSeconds: 300
+    identitySource: method.request.header.Authorization
+    type: token
+
+package:
+  individually: true
+  patterns:
+    - '!scripts/**'
+    - '!postman/**'
+    - '!README.md'
+
+functions:
+  listarEntrevistas:
+    handler: listar_entrevistas.handler
+    package:
+      patterns: ['!**', 'listar_entrevistas.py', 'common/**']
+    events:
+      - http:
+          path: entrevistas
+          method: get
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  crearEntrevista:
+    handler: crear_entrevista.handler
+    package:
+      patterns: ['!**', 'crear_entrevista.py', 'common/**']
+    # Solo esta función va en la VPC (necesita RDS); las demás conservan su salida a internet.
+    # Valores de la consola del Learner Lab (VPC > Security groups / Subnets; subnets separadas por comas,
+    # ej. RDS_SG_IDS=sg-aaa y RDS_SUBNET_IDS=subnet-aaa,subnet-bbb).
+    vpc:
+      securityGroupIds:
+        - ${env:RDS_SG_IDS}
+      subnetIds:
+        Fn::Split: [',', '${env:RDS_SUBNET_IDS}']
+    environment:
+      TOPICO_ENTREVISTAS_ARN: !Ref TopicoEntrevistasAgendadas
+    events:
+      - http:
+          path: entrevistas
+          method: post
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  buscarEntrevista:
+    handler: buscar_entrevista.handler
+    package:
+      patterns: ['!**', 'buscar_entrevista.py', 'common/**']
+    events:
+      - http:
+          path: 'entrevistas/{entrevista_id}'
+          method: get
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  modificarEntrevista:
+    handler: modificar_entrevista.handler
+    package:
+      patterns: ['!**', 'modificar_entrevista.py', 'common/**']
+    events:
+      - http:
+          path: 'entrevistas/{entrevista_id}'
+          method: put
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  eliminarEntrevista:
+    handler: eliminar_entrevista.handler
+    package:
+      patterns: ['!**', 'eliminar_entrevista.py', 'common/**']
+    events:
+      - http:
+          path: 'entrevistas/{entrevista_id}'
+          method: delete
+          cors: true
+          authorizer: ${self:custom.authorizer}
+  procesarNotificacion:
+    handler: procesar_notificacion.handler
+    timeout: 10
+    package:
+      patterns: ['!**', 'procesar_notificacion.py', 'common/**']
+    events:
+      - sqs:
+          arn: !GetAtt ColaNotificacionesEntrevistas.Arn
+          batchSize: 5
+          functionResponseType: ReportBatchItemFailures
+
+resources:
+  Resources:
+    TablaEntrevistas:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: t_entrevistas-${sls:stage}
+        AttributeDefinitions:
+          - { AttributeName: tenant_id, AttributeType: S }
+          - { AttributeName: entrevista_id, AttributeType: S }
+        KeySchema:
+          - { AttributeName: tenant_id, KeyType: HASH }
+          - { AttributeName: entrevista_id, KeyType: RANGE }
+        BillingMode: PAY_PER_REQUEST
+
+    # Endpoint de interfaz con costo por hora (bajo, ~USD 0.01/h por AZ). Sin él, crearEntrevista
+    # (dentro de la VPC y sin NAT) no puede publicar en SNS.
+    EndpointSNS:
+      Type: AWS::EC2::VPCEndpoint
+      Properties:
+        VpcEndpointType: Interface
+        ServiceName: !Sub com.amazonaws.${AWS::Region}.sns
+        VpcId: ${env:RDS_VPC_ID}
+        SubnetIds:
+          Fn::Split: [',', '${env:RDS_SUBNET_IDS}']
+        SecurityGroupIds:
+          - ${env:RDS_SG_IDS}
+        PrivateDnsEnabled: true
+
+    TopicoEntrevistasAgendadas:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: topico-entrevistas-agendadas-${sls:stage}
+
+    ColaNotificacionesEntrevistas:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: cola-notificaciones-entrevistas-${sls:stage}
+        # Mayor que el timeout de procesarNotificacion (10 s)
+        VisibilityTimeout: 60
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt ColaNotificacionesEntrevistasDLQ.Arn
+          maxReceiveCount: 3
+
+    ColaNotificacionesEntrevistasDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: cola-notificaciones-entrevistas-dlq-${sls:stage}
+        MessageRetentionPeriod: 1209600
+
+    ColaPolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref ColaNotificacionesEntrevistas
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal: { Service: sns.amazonaws.com }
+              Action: sqs:SendMessage
+              Resource: !GetAtt ColaNotificacionesEntrevistas.Arn
+              Condition:
+                ArnEquals:
+                  aws:SourceArn: !Ref TopicoEntrevistasAgendadas
+
+    SuscripcionColaEntrevistas:
+      Type: AWS::SNS::Subscription
+      Properties:
+        TopicArn: !Ref TopicoEntrevistasAgendadas
+        Protocol: sqs
+        Endpoint: !GetAtt ColaNotificacionesEntrevistas.Arn
+        RawMessageDelivery: false

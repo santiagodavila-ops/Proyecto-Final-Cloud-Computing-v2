@@ -1,0 +1,172 @@
+{
+  "info": {
+    "name": "CRM - Reportes",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Ejecutar en orden. Completar email y password de un usuario del tenant."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://zeagrg9231.execute-api.us-east-1.amazonaws.com/dev"
+    },
+    {
+      "key": "usuarios_url",
+      "value": "https://hwi0abum32.execute-api.us-east-1.amazonaws.com/dev"
+    },
+    {
+      "key": "tenant_id",
+      "value": "tenant_1"
+    },
+    {
+      "key": "email",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "00 - Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{usuarios_url}}/usuarios/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status 2xx', () => pm.expect(pm.response.code).to.be.within(200, 299));",
+              "if (pm.response.code < 300) {",
+              "  const d = pm.response.json();",
+              "  pm.collectionVariables.set('token', d.token_acceso);",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 - Generar resumen general",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/reportes/generar",
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "02 - Consultar resumen general",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/reportes/resumen_general"
+      }
+    },
+    {
+      "name": "03 - Listar reportes",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/reportes"
+      }
+    },
+    {
+      "name": "04 - Reportes diarios de octubre 2026",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/reportes?prefijo=diario_2026-10"
+      }
+    },
+    {
+      "name": "05 - Agregar observaciones",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/reportes/resumen_general",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"observaciones\": \"Revisado en la demo\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "06 - Eliminar resumen (se regenera con 01)",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{base_url}}/reportes/resumen_general"
+      }
+    },
+    {
+      "name": "07 - Rechazo sin token",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/reportes",
+        "auth": {
+          "type": "noauth"
+        }
+      }
+    }
+  ]
+}

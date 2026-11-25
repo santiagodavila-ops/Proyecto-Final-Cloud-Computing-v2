@@ -6,6 +6,11 @@ set -euo pipefail
 source "$(dirname "$0")/lib.sh"
 [ -f "$DIR/.env.local" ] || { echo "Falta $DIR/.env.local: corre primero 01 y 02"; exit 1; }
 CANTIDAD="${1:-10000}"
+if ! [[ "$CANTIDAD" =~ ^[1-9][0-9]*$ ]] || (( CANTIDAD % 2 != 0 )); then
+  echo "La cantidad por tenant debe ser un entero positivo y par." >&2
+  exit 1
+fi
+CANTIDAD_RDS=$((CANTIDAD / 2))
 SVC="$REPO/microservicios"
 
 set_env() { grep -v "^$1=" "$DIR/.env.local" > "$DIR/.env.local.tmp" || true; echo "$1=$2" >> "$DIR/.env.local.tmp"; mv "$DIR/.env.local.tmp" "$DIR/.env.local"; }
@@ -26,11 +31,14 @@ export ADMIN_PASSWORD
 echo "==> [1/6] Administradores iniciales (admin@tenant{1,2,3}.example)"
 "$PY" "$DIR/seed_admin.py" "$STAGE"
 
+echo "==> Completando usuarios hasta $CANTIDAD por tenant"
+"$PY" "$SVC/cs2032-final-usuarios/scripts/cargar_datos.py" "$STAGE" "$CANTIDAD"
+
 echo "==> [2/6] Candidatos ($CANTIDAD por tenant)  -- debe ir antes que vacantes y entrevistas"
 (cd "$SVC/cs2032-final-candidatos" && "$PY" scripts/cargar_datos.py "$STAGE" "$CANTIDAD")
 
 echo "==> [3/6] Vacantes y postulaciones en DynamoDB (leen candidatos)"
-(cd "$SVC/cs2032-final-vacantes" && "$PY" scripts/cargar_datos.py "$STAGE" "$CANTIDAD")
+(cd "$SVC/cs2032-final-vacantes" && "$PY" scripts/cargar_datos.py "$STAGE" "$CANTIDAD_RDS")
 
 echo "==> [4/6] Entrevistas (leen postulaciones)"
 (cd "$SVC/cs2032-final-entrevistas" && "$PY" scripts/cargar_datos.py "$STAGE" "$CANTIDAD")

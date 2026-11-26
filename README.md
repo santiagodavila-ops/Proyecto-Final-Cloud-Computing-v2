@@ -60,7 +60,7 @@ El diagrama editable completo se encuentra en [`diagramas/Diagrama_Arquitectura_
 ### 1. Seguridad (Security)
 - **Zero Hardcoded Secrets:** Ninguna función Lambda almacena contraseñas en variables de entorno. La contraseña de base de datos se almacena cifrada en **AWS Systems Manager Parameter Store** (`SecureString` KMS) y se recupera en tiempo de ejecución con caché en memoria cold-start.
 - **Defensa en Profundidad de Red:** La base de datos MySQL reside en una VPC privada (`PubliclyAccessible=false`). El grupo de seguridad `cs2032-lambda-rds` autoriza tráfico exclusivamente desde sí mismo. El acceso administrativo temporal (`cs2032-rds-admin`) se revoca de inmediato al concluir las migraciones.
-- **Autenticación Perimetral:** Las 5 APIs REST delegan la validación de tokens al Authorizer antes de enrutar a las funciones de negocio, retornando `HTTP 401 Unauthorized` perimetral sin coste de cómputo backend.
+- **Autenticación Perimetral:** En las rutas protegidas que usan el autorizador, API Gateway valida el token antes de invocar la función de negocio. El alta de usuarios comprueba el token y el rol de administrador en su propia función.
 
 ### 2. Fiabilidad y Resiliencia (Reliability)
 - **Tolerancia a Fallos y DLQ:** El flujo de notificaciones asíncronas implementa una cola de mensajes no procesables (`cola-notificaciones-entrevistas-dlq-dev`) con retención de 14 días y `maxReceiveCount: 3`.
@@ -86,7 +86,7 @@ Para desplegar la solución completa en una cuenta limpia de AWS:
 
 ### Requisitos Previos
 - AWS CLI v2 configurado con permisos de administrador.
-- Node.js (>= 18) y Serverless Framework v3 (`npm install -g serverless@3`).
+- Node.js compatible con Vite (`^20.19.0 || >=22.12.0`) y Serverless Framework v3 (`npm install -g serverless@3`).
 - Python 3.11 y virtualenv.
 
 ### Secuencia de Ejecución
@@ -97,8 +97,8 @@ bash despliegue/01_infra_base.sh
 # 2. Desplegar los 5 microservicios Serverless
 bash despliegue/02_deploy_servicios.sh
 
-# 3. Cargar datos semilla e inicializar esquemas multi-tenant
-bash despliegue/03_datos.sh 1000
+# 3. Cargar los datos en una cuenta limpia e inicializar los esquemas por tenant
+bash despliegue/03_datos.sh 10000
 
 # 4. Configurar observabilidad, alarmas y dashboard centralizado
 ALERT_EMAIL=tu_correo@dominio.com bash despliegue/04_observabilidad.sh
@@ -109,6 +109,24 @@ bash despliegue/05_frontend.sh
 # 6. Ejecutar suite de pruebas de humo E2E
 bash despliegue/06_smoke_test.sh
 ```
+
+---
+
+## Datos por microservicio
+
+En el recuento del 25 de noviembre de 2026, el entorno `dev` reunió **150 000 registros** en tres empresas.
+
+| Microservicio | tenant_1 | tenant_2 | tenant_3 | Total |
+|---|---:|---:|---:|---:|
+| Usuarios | 10 000 | 10 000 | 10 000 | 30 000 |
+| Candidatos | 10 000 | 10 000 | 10 000 | 30 000 |
+| Vacantes y postulaciones | 10 000 | 10 000 | 10 000 | 30 000 |
+| Entrevistas | 10 000 | 10 000 | 10 000 | 30 000 |
+| Reportes | 10 000 | 10 000 | 10 000 | 30 000 |
+
+Cada esquema de RDS contiene 5 000 vacantes y 5 000 postulaciones. El total de Usuarios corresponde a las cuentas de `t_usuarios-dev`. Los tokens de sesión se contabilizan aparte.
+
+Para una prueba con una base vacía se puede usar `bash despliegue/03_datos.sh 1000`. Repetir la carga sobre datos existentes puede añadir registros.
 
 ---
 
